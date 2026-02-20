@@ -1,0 +1,17 @@
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+orkestra:
+  aws:
+    region: us-east-1
+    local: true
+    accessKey: test
+    secretKey: test
+  dynamodb:
+    endpoint: http://localhost:4566
