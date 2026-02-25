@@ -1,0 +1,383 @@
+openapi: 3.0.3
+info:
+  title: Orkestra API
+  version: 1.0.0
+  description: |
+    Orkestra is a multi-tenant internal workflow orchestration platform.
+    This API covers Milestone 1 (health/observability) and Milestone 2
+    (workflow definition upload + browsing).
+
+servers:
+  - url: /api
+
+tags:
+  - name: System
+    description: Platform-level endpoints for health and diagnostics.
+  - name: Workflow
+    description: Workflow definition upload, versioning, and retrieval.
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns basic service health and optional dependency hints.
+      operationId: getHealth
+      tags: [System]
+      responses:
+        '200':
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+
+  /v1/workflows:
+    get:
+      summary: List workflows
+      description: Lists workflow names for the current tenant with metadata.
+      operationId: listWorkflows
+      tags: [Workflow]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Workflows returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListWorkflowsResponse'
+        '400':
+          description: Invalid pagination parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+    post:
+      summary: Upload a workflow definition file
+      description: |
+        Uploads a YAML workflow definition file for the current tenant.
+        The service validates the DAG and creates a new immutable version
+        (auto-incremented per workflow name).
+      operationId: registerWorkflow
+      tags: [Workflow]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterWorkflowRequest'
+      responses:
+        '201':
+          description: Workflow version created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterWorkflowResponse'
+        '400':
+          description: Invalid YAML / invalid DAG / missing fields / name mismatch.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Workflow name is reserved/locked (optional).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '413':
+          description: Workflow file too large.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '415':
+          description: Unsupported media type (optional).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /v1/workflows/{name}/versions:
+    get:
+      summary: List workflow versions
+      description: Lists available versions for a workflow name (metadata only).
+      operationId: listWorkflowVersions
+      tags: [Workflow]
+      parameters:
+        - $ref: '#/components/parameters/WorkflowName'
+      responses:
+        '200':
+          description: Workflow versions returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListWorkflowVersionsResponse'
+        '404':
+          description: Workflow not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /v1/workflows/{name}/versions/{version}:
+    get:
+      summary: Get workflow definition by version
+      description: Returns the normalized workflow definition and graph representation.
+      operationId: getWorkflowVersion
+      tags: [Workflow]
+      parameters:
+        - $ref: '#/components/parameters/WorkflowName'
+        - $ref: '#/components/parameters/WorkflowVersion'
+      responses:
+        '200':
+          description: Workflow version returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowVersion'
+        '404':
+          description: Workflow version not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+components:
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor for pagination. Omit to start from the beginning.
+      schema:
+        type: string
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 200
+        default: 50
+
+    WorkflowName:
+      name: name
+      in: path
+      required: true
+      description: Workflow name.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+
+    WorkflowVersion:
+      name: version
+      in: path
+      required: true
+      description: Workflow version number.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+
+  schemas:
+    HealthCheck:
+      type: object
+      description: Basic service health response.
+      required: [status]
+      properties:
+        status:
+          type: string
+          description: Overall status.
+          example: UP
+        tables:
+          type: array
+          description: Optional list of known DynamoDB tables (dev visibility).
+          items:
+            type: string
+
+    RegisterWorkflowRequest:
+      type: object
+      required: [name, definition]
+      properties:
+        name:
+          type: string
+          description: Workflow name to register (canonical name).
+          example: invoice-processing
+        definition:
+          type: string
+          format: binary
+          description: YAML file containing the workflow definition.
+
+    RegisterWorkflowResponse:
+      type: object
+      description: Result of creating a new workflow version.
+      required: [name, version, createdAt]
+      properties:
+        name:
+          type: string
+        version:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-02-20T22:00:00Z"
+
+    ListWorkflowsResponse:
+      type: object
+      description: Paginated list of workflow names for the tenant.
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowListItem'
+        nextCursor:
+          type: string
+          nullable: true
+          description: Cursor for the next page, if any.
+
+    WorkflowListItem:
+      type: object
+      description: Workflow metadata used for listing.
+      required: [name, latestVersion, updatedAt]
+      properties:
+        name:
+          type: string
+        latestVersion:
+          type: integer
+          format: int32
+          minimum: 1
+        updatedAt:
+          type: string
+          format: date-time
+
+    ListWorkflowVersionsResponse:
+      type: object
+      description: Version history for a workflow (metadata only).
+      required: [name, versions]
+      properties:
+        name:
+          type: string
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowVersionMetadata'
+
+    WorkflowVersionMetadata:
+      type: object
+      required: [version, createdAt]
+      properties:
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+
+    WorkflowVersion:
+      type: object
+      description: Normalized workflow definition plus graph representation.
+      required: [name, version, createdAt, dsl, graph]
+      properties:
+        name:
+          type: string
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        dsl:
+          $ref: '#/components/schemas/Dsl'
+        graph:
+          $ref: '#/components/schemas/Graph'
+
+    Dsl:
+      type: object
+      description: Normalized workflow definition.
+      required: [name, steps]
+      properties:
+        name:
+          type: string
+        steps:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/DslStep'
+
+    DslStep:
+      type: object
+      required: [id, type]
+      properties:
+        id:
+          type: string
+          description: Unique step identifier within the workflow.
+          example: validate
+        type:
+          type: string
+          description: Step type.
+          enum: [noop, http]
+        dependsOn:
+          type: array
+          description: List of step IDs that must complete before this step can run.
+          items:
+            type: string
+          default: []
+
+    Graph:
+      type: object
+      description: UI-friendly graph representation (nodes + edges).
+      required: [steps, edges]
+      properties:
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/GraphStep'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/GraphEdge'
+
+    GraphStep:
+      type: object
+      required: [id, type]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+
+    GraphEdge:
+      type: object
+      required: [from, to]
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+
+    ApiError:
+      type: object
+      description: Standard error response.
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: WORKFLOW_INVALID_DAG
+        message:
+          type: string
+          example: "Workflow has a cycle involving steps: A -> B -> A"
+        details:
+          type: object
+          additionalProperties: true
