@@ -1,0 +1,6 @@
+name: invoice-processing
+steps:
+  - id: persist
+    type: noop
+    dependsOn:
+      - enrich

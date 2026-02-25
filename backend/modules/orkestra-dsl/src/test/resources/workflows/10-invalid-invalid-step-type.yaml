@@ -1,0 +1,4 @@
+name: invoice-processing
+steps:
+  - id: validate
+    type: ai

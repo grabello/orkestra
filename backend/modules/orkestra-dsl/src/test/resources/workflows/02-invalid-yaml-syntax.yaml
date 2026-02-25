@@ -1,0 +1,7 @@
+name: invoice-processing
+steps:
+  - id: validate
+    type: noop
+  - id: enrich
+    type: noop
+    dependsOn: [validate

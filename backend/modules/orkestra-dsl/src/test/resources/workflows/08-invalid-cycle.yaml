@@ -1,0 +1,14 @@
+name: invoice-processing
+steps:
+  - id: a
+    type: noop
+    dependsOn:
+      - c
+  - id: b
+    type: noop
+    dependsOn:
+      - a
+  - id: c
+    type: noop
+    dependsOn:
+      - b

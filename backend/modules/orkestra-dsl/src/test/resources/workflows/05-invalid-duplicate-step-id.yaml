@@ -1,0 +1,6 @@
+name: invoice-processing
+steps:
+  - id: validate
+    type: noop
+  - id: validate
+    type: noop
