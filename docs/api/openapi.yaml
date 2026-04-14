@@ -375,9 +375,8 @@ components:
         code:
           type: string
           example: WORKFLOW_INVALID_DAG
-        message:
-          type: string
-          example: "Workflow has a cycle involving steps: A -> B -> A"
-        details:
-          type: object
-          additionalProperties: true
+        messages:
+          type: array
+          items:
+            type: string
+            example: "Workflow has a cycle involving steps: A -> B -> A"

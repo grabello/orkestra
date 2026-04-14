@@ -8,6 +8,7 @@ build/*
 *.lock
 *.terraform/
 *.terraform*
+**/*.tfstate*
 
 # Node
 node_modules/

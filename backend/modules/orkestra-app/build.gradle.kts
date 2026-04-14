@@ -15,11 +15,17 @@ dependencies {
     implementation(project(":modules:orkestra-storage"))
     implementation(project(":modules:orkestra-dsl"))
 
+
+    implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
+    implementation ("com.fasterxml.jackson.core:jackson-databind")
+    implementation ("com.fasterxml.jackson.core:jackson-core")
+    implementation ("com.fasterxml.jackson.core:jackson-annotations")
+
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
 
     implementation(platform("software.amazon.awssdk:bom:2.25.18"))
-    implementation("software.amazon.awssdk:dynamodb")
+    implementation("software.amazon.awssdk:dynamodb-enhanced")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 

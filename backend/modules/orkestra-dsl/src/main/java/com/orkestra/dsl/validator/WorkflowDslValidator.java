@@ -18,40 +18,6 @@ import java.util.Set;
 
 public class WorkflowDslValidator {
 
-    public GraphModel validate(final DslModel dslModel) {
-        final StringBuilder errors = new StringBuilder();
-        final Map<String, Set<String>> stepNamesAndDependencies = new HashMap<>();
-        final Set<String> allDependencies = new HashSet<>();
-        final Map<String, String> stepTypes = new HashMap<>();
-
-        dslModel.getSteps().forEach(step -> {
-            if (stepNamesAndDependencies.containsKey(step.getId())) {
-                errors.append(step.getId()).append(" is already defined.").append(System.lineSeparator());
-            } else {
-                Set<String> dependencies = step.getDependsOn() == null ? new HashSet<>() : step.getDependsOn().stream().map(String::valueOf).collect(HashSet::new, Set::add, Set::addAll);
-                allDependencies.addAll(dependencies);
-                if (dependencies.contains(step.getId())) {
-                    errors.append(step.getId()).append(" cannot depend on itself.").append(System.lineSeparator());
-                }
-                stepNamesAndDependencies.put(step.getId(), dependencies);
-                stepTypes.put(step.getId(), step.getType());
-            }
-        });
-
-        allDependencies.stream().filter(key -> !stepNamesAndDependencies.containsKey(key)).forEach(stepName -> errors.append(stepName).append(" is not defined but it is a dependency.").append(System.lineSeparator()));
-
-
-        // After basic schema checks, verify there are no cycles using Kahn's algorithm.
-        // Also materialize a GraphModel (steps in topological order, edges dep -> node).
-        Optional<GraphModel> graphModel = topologicalValidation(stepNamesAndDependencies, stepTypes, errors);
-
-        if (!errors.isEmpty()) {
-            throw new WorkflowValidationException("WORKFLOW_SCHEMA_INVALID", errors.toString());
-        }
-
-        return graphModel.orElse(null);
-    }
-
     /**
      * Verifies the dependency graph is acyclic using Kahn's algorithm.
      * Graph format: key = stepId, value = set of prerequisite stepIds that "key" depends on.
@@ -127,9 +93,10 @@ public class WorkflowDslValidator {
     private static GraphModel getGraphModel(Map<String, Set<String>> graph, Map<String, String> stepTypes, List<String> topoOrder) {
         List<GraphStepModel> steps = new ArrayList<>(topoOrder.size());
         for (String id : topoOrder) {
-            GraphStepModel step = new GraphStepModel();
-            step.setId(id);
-            step.setType(stepTypes.get(id));
+            GraphStepModel step = GraphStepModel.builder()
+                                                .id(id)
+                                                .type(stepTypes.get(id))
+                                                .build();
             // type is unknown at this layer; leave null
             steps.add(step);
         }
@@ -140,17 +107,54 @@ public class WorkflowDslValidator {
             String node = entry.getKey();
             for (String dep : entry.getValue()) {
                 if (graph.containsKey(dep)) {
-                    GraphEdgeModel e = new GraphEdgeModel();
-                    e.setFrom(dep);
-                    e.setTo(node);
+                    GraphEdgeModel e = GraphEdgeModel.builder()
+                                                     .from(dep)
+                                                     .to(node)
+                                                     .build();
                     edges.add(e);
                 }
             }
         }
 
-        GraphModel model = new GraphModel();
-        model.setSteps(steps);
-        model.setEdges(edges);
-        return model;
+        return GraphModel.builder()
+                         .steps(steps)
+                         .edges(edges)
+                         .build();
+    }
+
+    public GraphModel validate(final DslModel dslModel) {
+        final StringBuilder errors = new StringBuilder();
+        final Map<String, Set<String>> stepNamesAndDependencies = new HashMap<>();
+        final Set<String> allDependencies = new HashSet<>();
+        final Map<String, String> stepTypes = new HashMap<>();
+
+        dslModel.getSteps().forEach(step -> {
+            if (stepNamesAndDependencies.containsKey(step.getId())) {
+                errors.append(step.getId()).append(" is already defined.").append(System.lineSeparator());
+            } else {
+                Set<String> dependencies = step.getDependsOn() == null ? new HashSet<>() : step.getDependsOn().stream().map(String::valueOf).collect(HashSet::new, Set::add, Set::addAll);
+                allDependencies.addAll(dependencies);
+                if (dependencies.contains(step.getId())) {
+                    errors.append(step.getId()).append(" cannot depend on itself.").append(System.lineSeparator());
+                }
+                stepNamesAndDependencies.put(step.getId(), dependencies);
+                stepTypes.put(step.getId(), step.getType());
+            }
+        });
+
+        allDependencies.stream()
+                       .filter(key -> !stepNamesAndDependencies.containsKey(key))
+                       .forEach(stepName -> errors.append(stepName).append(" is not defined but it is a dependency.").append(System.lineSeparator()));
+
+
+        // After basic schema checks, verify there are no cycles using Kahn's algorithm.
+        // Also materialize a GraphModel (steps in topological order, edges dep -> node).
+        Optional<GraphModel> graphModel = topologicalValidation(stepNamesAndDependencies, stepTypes, errors);
+
+        if (!errors.isEmpty()) {
+            throw new WorkflowValidationException("WORKFLOW_SCHEMA_INVALID", errors.toString());
+        }
+
+        return graphModel.orElse(null);
     }
 }

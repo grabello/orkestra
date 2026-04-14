@@ -3,6 +3,7 @@ package com.orkestra.app.web;
 import com.orkestra.api.model.ApiError;
 import com.orkestra.exception.FileProcessingException;
 import com.orkestra.exception.UnsupportedMediaTypeException;
+import com.orkestra.exception.WorkflowNotFoundException;
 import com.orkestra.exception.WorkflowValidationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +33,7 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("INTERNAL_ERROR", response.getBody().getCode());
-        assertEquals("Unexpected error occurred", response.getBody().getMessage());
+        assertEquals("Unexpected error occurred", response.getBody().getMessages().get(0));
     }
 
     @Test
@@ -45,7 +46,7 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("VALIDATION_ERROR", response.getBody().getCode());
-        assertEquals("Validation failed", response.getBody().getMessage());
+        assertEquals("Validation failed", response.getBody().getMessages().get(0));
     }
 
     @Test
@@ -58,7 +59,7 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("FILE_PROCESSING_ERROR", response.getBody().getCode());
-        assertEquals("File processing failed", response.getBody().getMessage());
+        assertEquals("File processing failed", response.getBody().getMessages().get(0));
     }
 
     @Test
@@ -71,7 +72,7 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("UNSUPPORTED_MEDIA_TYPE", response.getBody().getCode());
-        assertEquals("Media type not supported", response.getBody().getMessage());
+        assertEquals("Media type not supported", response.getBody().getMessages().get(0));
     }
 
     @Test
@@ -86,7 +87,7 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response.getBody());
         assertEquals("MISSING_PARAMETER", response.getBody().getCode());
         assertEquals("Required request parameter 'paramName' for method parameter type String is not present",
-                response.getBody().getMessage());
+                response.getBody().getMessages().get(0));
     }
 
     @Test
@@ -99,7 +100,7 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("MISSING_PARAMETER", response.getBody().getCode());
-        assertEquals("Required part 'file' is not present.", response.getBody().getMessage());
+        assertEquals("Required part 'file' is not present.", response.getBody().getMessages().get(0));
     }
 
     @Test
@@ -112,6 +113,18 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("WORKFLOW_FILE_TOO_LARGE", response.getBody().getCode());
-        assertEquals("Workflow file exceeds maximum allowed size", response.getBody().getMessage());
+        assertEquals("Workflow file exceeds maximum allowed size", response.getBody().getMessages().get(0));
+    }
+
+    @Test
+    void testHandleWorkflowNotFoundException() {
+        WorkflowNotFoundException ex = new WorkflowNotFoundException("WORKFLOW_NOT_FOUND", "workflow1");
+        ResponseEntity<ApiError> response = globalExceptionHandler.handleWorkflowNotFoundException(ex);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("WORKFLOW_NOT_FOUND", response.getBody().getCode());
+        assertEquals("workflow1", response.getBody().getMessages().get(0));
     }
 }

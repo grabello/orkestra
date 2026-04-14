@@ -52,6 +52,16 @@ tasks.jacocoTestReport {
             }
         )
     )
+
+    doLast {
+        val xmlFile = reports.xml.outputLocation.get().asFile
+        val htmlDir = reports.html.outputLocation.get().asFile
+        println("JaCoCo reports generated:")
+        println(" - XML : ${xmlFile.absolutePath}")
+        println(" - HTML: ${htmlDir.absolutePath}")
+        println("Open HTML report in your browser: file://${htmlDir.resolve("index.html").absolutePath}")
+    }
+
 }
 
 tasks.jacocoTestCoverageVerification {

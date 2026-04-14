@@ -1,15 +1,19 @@
 package com.orkestra.app.web;
 
-import com.orkestra.app.service.WorkflowRegistrationService;
+import com.orkestra.api.model.RegisterWorkflowResponse;
+import com.orkestra.app.service.WorkflowManagementService;
 import com.orkestra.app.web.util.WorkflowFileReader;
 import com.orkestra.exception.FileProcessingException;
 import com.orkestra.exception.UnsupportedMediaTypeException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
+
+import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -26,7 +30,7 @@ class WorkflowControllerTest {
     private WorkflowFileReader workflowFileReader;
 
     @MockBean
-    private WorkflowRegistrationService workflowRegistrationService;
+    private WorkflowManagementService workflowManagementService;
 
     @Test
     @DisplayName("registerWorkflow: happy path with application/yaml file")
@@ -41,8 +45,13 @@ class WorkflowControllerTest {
         );
 
         when(workflowFileReader.read(file)).thenReturn(new String(content));
+        RegisterWorkflowResponse expectedResponse = new RegisterWorkflowResponse();
+        expectedResponse.setName(name);
+        expectedResponse.setVersion(1);
+        expectedResponse.setCreatedAt(OffsetDateTime.now());
+        when(workflowManagementService.register("1", name, new String(content))).thenReturn(expectedResponse);
 
-        var response = controller.registerWorkflow(name, file);
+        ResponseEntity<RegisterWorkflowResponse> response = controller.registerWorkflow(name, file);
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(response.getBody()).isNotNull();
@@ -50,7 +59,7 @@ class WorkflowControllerTest {
         assertThat(response.getBody().getVersion()).isEqualTo(1);
         assertThat(response.getBody().getCreatedAt()).isNotNull();
 
-        verify(workflowRegistrationService).register(name, new String(content));
+        verify(workflowManagementService).register("1", name, new String(content));
     }
 
     @Test
@@ -66,8 +75,13 @@ class WorkflowControllerTest {
         );
 
         when(workflowFileReader.read(file)).thenReturn(new String(content));
+        RegisterWorkflowResponse expectedResponse = new RegisterWorkflowResponse();
+        expectedResponse.setName(name);
+        expectedResponse.setVersion(1);
+        expectedResponse.setCreatedAt(OffsetDateTime.now());
+        when(workflowManagementService.register("1", name, new String(content))).thenReturn(expectedResponse);
 
-        var response = controller.registerWorkflow(name, file);
+        ResponseEntity<RegisterWorkflowResponse> response = controller.registerWorkflow(name, file);
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(response.getBody()).isNotNull();
@@ -75,7 +89,7 @@ class WorkflowControllerTest {
         assertThat(response.getBody().getVersion()).isEqualTo(1);
         assertThat(response.getBody().getCreatedAt()).isNotNull();
 
-        verify(workflowRegistrationService).register(name, new String(content));
+        verify(workflowManagementService).register("1", name, new String(content));
     }
 
     @Test
@@ -92,6 +106,14 @@ class WorkflowControllerTest {
 
         when(workflowFileReader.read(file)).thenReturn(new String(content));
 
+        when(workflowFileReader.read(file)).thenReturn(new String(content));
+        RegisterWorkflowResponse expectedResponse = new RegisterWorkflowResponse();
+        expectedResponse.setName(name);
+        expectedResponse.setVersion(1);
+        expectedResponse.setCreatedAt(OffsetDateTime.now());
+        when(workflowManagementService.register("1", name, new String(content))).thenReturn(expectedResponse);
+
+
         var response = controller.registerWorkflow(name, file);
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
@@ -100,7 +122,7 @@ class WorkflowControllerTest {
         assertThat(response.getBody().getVersion()).isEqualTo(1);
         assertThat(response.getBody().getCreatedAt()).isNotNull();
 
-        verify(workflowRegistrationService).register(name, new String(content));
+        verify(workflowManagementService).register("1", name, new String(content));
     }
 
     @Test

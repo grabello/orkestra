@@ -4,7 +4,7 @@ import com.orkestra.api.model.ListWorkflowVersionsResponse;
 import com.orkestra.api.model.ListWorkflowsResponse;
 import com.orkestra.api.model.RegisterWorkflowResponse;
 import com.orkestra.api.model.WorkflowVersion;
-import com.orkestra.app.service.WorkflowRegistrationService;
+import com.orkestra.app.service.WorkflowManagementService;
 import com.orkestra.app.web.generated.WorkflowApi;
 import com.orkestra.app.web.util.WorkflowFileReader;
 import com.orkestra.exception.FileProcessingException;
@@ -17,8 +17,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.OffsetDateTime;
-
 @RequiredArgsConstructor
 @RestController
 public class WorkflowController implements WorkflowApi {
@@ -28,26 +26,29 @@ public class WorkflowController implements WorkflowApi {
 
     private final WorkflowFileReader workflowFileReader;
 
-    private final WorkflowRegistrationService workflowRegistrationService;
+    private final WorkflowManagementService workflowManagementService;
 
     @Override
     public ResponseEntity<WorkflowVersion> getWorkflowVersion(String name, Integer version) {
-        return null;
+        log.info("Received request to get workflow version name={} version={}", name, version);
+        return ResponseEntity.ok(workflowManagementService.getWorkflowVersion("1", name, version));
     }
 
     @Override
     public ResponseEntity<ListWorkflowVersionsResponse> listWorkflowVersions(String name) {
-        return null;
+        log.info("Received request to list workflow versions name={}", name);
+
+        return ResponseEntity.ok(workflowManagementService.listWorkflowVersions("1", name));
     }
 
     @Override
     public ResponseEntity<ListWorkflowsResponse> listWorkflows(String cursor, Integer limit) {
-        return null;
+        log.info("Received request to list workflows cursor={} limit={}", cursor, limit);
+        return ResponseEntity.ok(workflowManagementService.listWorkflows("1", cursor, limit));
     }
 
     @Override
     public ResponseEntity<RegisterWorkflowResponse> registerWorkflow(String name, MultipartFile definition) {
-        OffsetDateTime createdAt = OffsetDateTime.now();
         log.info("Received workflow file name={} size={}B", name, definition.getSize());
 
         if (definition.isEmpty()) {
@@ -64,12 +65,8 @@ public class WorkflowController implements WorkflowApi {
 
         String yamlString = workflowFileReader.read(definition);
 
-        workflowRegistrationService.register(name, yamlString);
+        RegisterWorkflowResponse response = workflowManagementService.register("1", name, yamlString);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(
-                new RegisterWorkflowResponse()
-                        .name(name)
-                        .version(1)
-                        .createdAt(createdAt));
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

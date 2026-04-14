@@ -1,0 +1,37 @@
+name: chaos-workflow
+steps:
+  # Missing step type
+  - id: missingType
+    type: noop
+
+  # Duplicate step id (same as above)
+  - id: missingType
+    type: noop
+
+  # Self-dependency
+  - id: selfRef
+    type: noop
+    dependsOn:
+      - selfRef
+
+  # Unknown dependency (no step named "ghost")
+  - id: dependsOnMissing
+    type: noop
+    dependsOn:
+      - ghost
+
+  # Cycle: a -> b -> c -> a
+  - id: a
+    type: noop
+    dependsOn:
+      - c
+
+  - id: b
+    type: noop
+    dependsOn:
+      - a
+
+  - id: c
+    type: noop
+    dependsOn:
+      - b

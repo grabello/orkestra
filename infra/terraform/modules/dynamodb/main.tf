@@ -14,6 +14,28 @@ resource "aws_dynamodb_table" "tenants" {
   })
 }
 
+resource "aws_dynamodb_table" "workflow_index" {
+  name         = "${var.env_prefix}_orkestra_workflow_index"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "tenantId"
+  range_key    = "workflowName"
+
+  attribute {
+    name = "tenantId"
+    type = "S"
+  }
+
+  attribute {
+    name = "workflowName"
+    type = "S"
+  }
+
+  tags = merge(var.tags, {
+    component = "dynamodb"
+    table     = "workflow_index"
+  })
+}
+
 resource "aws_dynamodb_table" "job_definitions" {
   name         = "${var.env_prefix}_orkestra_job_definitions"
   billing_mode = "PAY_PER_REQUEST"
