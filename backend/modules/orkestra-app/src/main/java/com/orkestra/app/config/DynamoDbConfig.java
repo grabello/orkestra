@@ -1,6 +1,9 @@
 package com.orkestra.app.config;
 
 import com.orkestra.storage.dynamodb.model.JobDefinitionTable;
+import com.orkestra.storage.dynamodb.model.PlatformAdminTable;
+import com.orkestra.storage.dynamodb.model.TenantMembershipTable;
+import com.orkestra.storage.dynamodb.model.TenantTable;
 import com.orkestra.storage.dynamodb.model.WorkflowIndexTable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -51,6 +54,21 @@ public class DynamoDbConfig {
     @Bean
     public DynamoDbTable<WorkflowIndexTable> workflowIndexTable(DynamoDbEnhancedClient dynamoDbEnhancedClient, final OrkestraDynamoProperties props) {
         return dynamoDbEnhancedClient.table(props.tables().workflowIndex(), TableSchema.fromBean(WorkflowIndexTable.class));
+    }
+
+    @Bean
+    public DynamoDbTable<PlatformAdminTable> platformAdminTable(DynamoDbEnhancedClient dynamoDbEnhancedClient, final OrkestraDynamoProperties props) {
+        return dynamoDbEnhancedClient.table(props.tables().platformAdmins(), TableSchema.fromBean(PlatformAdminTable.class));
+    }
+
+    @Bean
+    public DynamoDbTable<TenantTable> tenantTable(DynamoDbEnhancedClient dynamoDbEnhancedClient, final OrkestraDynamoProperties props) {
+        return dynamoDbEnhancedClient.table(props.tables().tenants(), TableSchema.fromBean(TenantTable.class));
+    }
+
+    @Bean
+    public DynamoDbTable<TenantMembershipTable> tenantMembershipTable(DynamoDbEnhancedClient dynamoDbEnhancedClient, final OrkestraDynamoProperties props) {
+        return dynamoDbEnhancedClient.table(props.tables().tenantMemberships(), TableSchema.fromBean(TenantMembershipTable.class));
     }
 
     /**

@@ -7,6 +7,8 @@ import com.orkestra.api.model.GraphEdge;
 import com.orkestra.api.model.GraphStep;
 import com.orkestra.api.model.ListWorkflowVersionsResponse;
 import com.orkestra.api.model.ListWorkflowsResponse;
+import com.orkestra.api.model.TenantMembershipResponse;
+import com.orkestra.api.model.TenantResponse;
 import com.orkestra.api.model.WorkflowListItem;
 import com.orkestra.api.model.WorkflowVersionMetadata;
 import com.orkestra.app.cursor.CursorCodec;
@@ -16,8 +18,11 @@ import com.orkestra.dsl.model.StepModel;
 import com.orkestra.graph.model.GraphEdgeModel;
 import com.orkestra.graph.model.GraphModel;
 import com.orkestra.graph.model.GraphStepModel;
+import com.orkestra.storage.dynamodb.TenantMembershipRepository;
 import com.orkestra.storage.dynamodb.WorkflowIndexRepository;
 import com.orkestra.storage.dynamodb.model.JobDefinitionTable;
+import com.orkestra.storage.dynamodb.model.TenantMembershipTable;
+import com.orkestra.storage.dynamodb.model.TenantTable;
 import com.orkestra.storage.dynamodb.model.WorkflowIndexTable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -106,6 +111,26 @@ public class ModelConverter {
         workflowListItem.setLatestVersion(workflowIndexTable.getLatestVersion());
         workflowListItem.setUpdatedAt(workflowIndexTable.getTimestamp());
         return workflowListItem;
+    }
+
+    public TenantResponse fromTableResult(TenantTable tenantTable) {
+        final TenantResponse tenantResponse = new TenantResponse();
+        tenantResponse.setTenantId(tenantTable.getTenantId());
+        tenantResponse.setSlug(tenantTable.getSlug());
+        tenantResponse.setName(tenantTable.getName());
+        tenantResponse.setCreatedAt(tenantTable.getCreatedAt());
+        tenantResponse.setCreatedBy(tenantTable.getCreatedBy());
+        return tenantResponse;
+    }
+
+    public TenantMembershipResponse fromTableResult(TenantMembershipTable tenantMembershipTable) {
+        final TenantMembershipResponse tenantMembershipResponse = new TenantMembershipResponse();
+        tenantMembershipResponse.setTenantId(tenantMembershipTable.getTenantId());
+        tenantMembershipResponse.setUserId(tenantMembershipTable.getUserId());
+        tenantMembershipResponse.setRole(TenantMembershipResponse.RoleEnum.fromValue(tenantMembershipTable.getRole()));
+        tenantMembershipResponse.setCreatedAt(tenantMembershipTable.getCreatedAt());
+        tenantMembershipResponse.createdBy(tenantMembershipTable.getCreatedBy());
+        return tenantMembershipResponse;
     }
 
     public WorkflowVersionMetadata fromTableResult(JobDefinitionTable jobDefinitionTable) {

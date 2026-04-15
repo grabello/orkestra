@@ -7,6 +7,12 @@ spring:
       max-file-size: 1MB
       max-request-size: 1MB
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://ayqjbwsqralpwjtarenu.supabase.co/auth/v1
+
 management:
   endpoints:
     web:
@@ -25,4 +31,7 @@ orkestra:
     tables:
       jobDefinitions: ${orkestra.stage}_orkestra_job_definitions
       workflowIndex: ${orkestra.stage}_orkestra_workflow_index
+      platformAdmins: ${orkestra.stage}_orkestra_platform_admins
+      tenants: ${orkestra.stage}_orkestra_tenants
+      tenantMemberships: ${orkestra.stage}_orkestra_tenant_memberships
 

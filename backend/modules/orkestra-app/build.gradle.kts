@@ -10,6 +10,9 @@ dependencies {
     // For @Schema etc (Boot 3 / jakarta variant)
     compileOnly("io.swagger.core.v3:swagger-annotations-jakarta:2.2.22")
 
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
+    testImplementation("org.springframework.security:spring-security-test")
+
     implementation(project(":modules:orkestra-api"))
     implementation(project(":modules:orkestra-core"))
     implementation(project(":modules:orkestra-storage"))

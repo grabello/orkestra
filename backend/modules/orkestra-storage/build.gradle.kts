@@ -39,7 +39,8 @@ jacoco {
 }
 
 val coverageExcludes = listOf(
-    "**/generated/**"
+    "**/generated/**",
+    "**/model/**"
 )
 
 tasks.jacocoTestReport {

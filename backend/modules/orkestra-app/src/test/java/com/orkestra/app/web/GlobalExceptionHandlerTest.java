@@ -1,6 +1,7 @@
 package com.orkestra.app.web;
 
 import com.orkestra.api.model.ApiError;
+import com.orkestra.app.exception.TenantNotFoundException;
 import com.orkestra.exception.FileProcessingException;
 import com.orkestra.exception.UnsupportedMediaTypeException;
 import com.orkestra.exception.WorkflowNotFoundException;
@@ -126,5 +127,17 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response.getBody());
         assertEquals("WORKFLOW_NOT_FOUND", response.getBody().getCode());
         assertEquals("workflow1", response.getBody().getMessages().get(0));
+    }
+
+    @Test
+    void testHandleTenantNotFoundException() {
+        TenantNotFoundException ex = new TenantNotFoundException("TENANT_NOT_FOUND", "tenant1");
+        ResponseEntity<ApiError> response = globalExceptionHandler.handleTenantNotFoundException(ex);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("TENANT_NOT_FOUND", response.getBody().getCode());
+        assertEquals("tenant1", response.getBody().getMessages().get(0));
     }
 }

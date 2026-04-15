@@ -8,9 +8,88 @@ resource "aws_dynamodb_table" "tenants" {
     type = "S"
   }
 
+  attribute {
+    name = "slug"
+    type = "S"
+  }
+
   tags = merge(var.tags, {
     component = "dynamodb"
     table     = "tenants"
+  })
+
+  global_secondary_index {
+    name               = "slug-index"
+    hash_key           = "slug"
+    projection_type    = "ALL"
+    on_demand_throughput {
+      max_read_request_units  = 5
+      max_write_request_units = 5
+    }
+  }
+}
+
+resource "aws_dynamodb_table" "orkestra_tenant_memberships" {
+  name         = "${var.env_prefix}_orkestra_tenant_memberships"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "tenantId"
+  range_key    = "userId"
+
+  attribute {
+    name = "tenantId"
+    type = "S"
+  }
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name               = "user-lookup-index"
+    hash_key           = "userId"
+    range_key           = "tenantId"
+    projection_type    = "ALL"
+    on_demand_throughput {
+      max_read_request_units  = 5
+      max_write_request_units = 5
+    }
+  }
+
+  tags = merge(var.tags, {
+    component = "dynamodb"
+    table     = "orkestra_tenant_memberships"
+  })
+}
+
+resource "aws_dynamodb_table" "orkestra_users" {
+  name         = "${var.env_prefix}_orkestra_users"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "userId"
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  tags = merge(var.tags, {
+    component = "dynamodb"
+    table     = "orkestra_users"
+  })
+}
+
+resource "aws_dynamodb_table" "orkestra_platform_admins" {
+  name         = "${var.env_prefix}_orkestra_platform_admins"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "userId"
+
+  attribute {
+    name = "userId"
+    type = "S"
+  }
+
+  tags = merge(var.tags, {
+    component = "dynamodb"
+    table     = "platform_admins"
   })
 }
 

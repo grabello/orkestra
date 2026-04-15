@@ -4,8 +4,12 @@ info:
   version: 1.0.0
   description: |
     Orkestra is a multi-tenant internal workflow orchestration platform.
-    This API covers Milestone 1 (health/observability) and Milestone 2
-    (workflow definition upload + browsing).
+
+    This API currently covers:
+    - System health and diagnostics
+    - Workflow definition upload and browsing
+    - Authenticated identity inspection
+    - Platform-admin tenant management
 
 servers:
   - url: /api
@@ -13,8 +17,14 @@ servers:
 tags:
   - name: System
     description: Platform-level endpoints for health and diagnostics.
+  - name: Auth
+    description: Authenticated identity endpoints.
   - name: Workflow
     description: Workflow definition upload, versioning, and retrieval.
+  - name: Tenant
+    description: Tenant-scoped endpoints for the currently authenticated user.
+  - name: Admin
+    description: Platform-admin endpoints that do not require X-Tenant-Id.
 
 paths:
   /health:
@@ -31,13 +41,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/HealthCheck'
 
+  /v1/me:
+    get:
+      summary: Get current authenticated user
+      description: Returns basic identity information derived from the authenticated JWT.
+      operationId: getCurrentUser
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Authenticated user returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /v1/tenants:
+    get:
+      summary: List tenants for current user
+      description: Lists the tenants the currently authenticated user can access.
+      operationId: listMyTenants
+      tags: [Tenant]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Accessible tenants returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTenantsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
   /v1/workflows:
     get:
       summary: List workflows
       description: Lists workflow names for the current tenant with metadata.
       operationId: listWorkflows
       tags: [Workflow]
+      security:
+        - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/TenantHeader'
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
       responses:
@@ -48,11 +97,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListWorkflowsResponse'
         '400':
-          description: Invalid pagination parameters.
+          description: Invalid pagination parameters or missing tenant header.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
 
     post:
       summary: Upload a workflow definition file
@@ -62,6 +115,10 @@ paths:
         (auto-incremented per workflow name).
       operationId: registerWorkflow
       tags: [Workflow]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantHeader'
       requestBody:
         required: true
         content:
@@ -81,6 +138,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
         '409':
           description: Workflow name is reserved/locked (optional).
           content:
@@ -94,7 +155,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiError'
         '415':
-          description: Unsupported media type (optional).
+          description: Unsupported media type.
           content:
             application/json:
               schema:
@@ -106,7 +167,10 @@ paths:
       description: Lists available versions for a workflow name (metadata only).
       operationId: listWorkflowVersions
       tags: [Workflow]
+      security:
+        - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/TenantHeader'
         - $ref: '#/components/parameters/WorkflowName'
       responses:
         '200':
@@ -115,6 +179,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListWorkflowVersionsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
         '404':
           description: Workflow not found.
           content:
@@ -128,7 +196,10 @@ paths:
       description: Returns the normalized workflow definition and graph representation.
       operationId: getWorkflowVersion
       tags: [Workflow]
+      security:
+        - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/TenantHeader'
         - $ref: '#/components/parameters/WorkflowName'
         - $ref: '#/components/parameters/WorkflowVersion'
       responses:
@@ -138,6 +209,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkflowVersion'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
         '404':
           description: Workflow version not found.
           content:
@@ -145,7 +220,132 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiError'
 
+  /admin/v1/tenants:
+    get:
+      summary: List tenants (platform admin)
+      description: Lists all tenants in the platform. Requires platform-admin access.
+      operationId: listTenantsAdmin
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Tenants returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTenantsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Caller is authenticated but not a platform admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+    post:
+      summary: Create tenant (platform admin)
+      description: |
+        Creates a new tenant. The caller must have platform-admin access.
+        The creator may optionally be added as the first tenant admin.
+      operationId: createTenant
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantRequest'
+      responses:
+        '201':
+          description: Tenant created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '400':
+          description: Invalid request payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Caller is authenticated but not a platform admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Tenant slug already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /admin/v1/tenants/{tenantId}/memberships:
+    post:
+      summary: Add tenant membership (platform admin)
+      description: Adds a user as a member of a tenant with a given role.
+      operationId: createTenantMembership
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantMembershipRequest'
+      responses:
+        '201':
+          description: Membership created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantMembershipResponse'
+        '400':
+          description: Invalid request payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Caller is authenticated but not a platform admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Tenant or user not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Membership already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT access token issued by Supabase Auth.
+
   parameters:
     Cursor:
       name: cursor
@@ -187,6 +387,41 @@ components:
         format: int32
         minimum: 1
 
+    TenantHeader:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      description: Active tenant identifier for tenant-scoped requests.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+
+    TenantId:
+      name: tenantId
+      in: path
+      required: true
+      description: Tenant identifier.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+
+  responses:
+    UnauthorizedError:
+      description: Missing or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
+    ForbiddenError:
+      description: Authenticated caller is not allowed to access the requested tenant.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
   schemas:
     HealthCheck:
       type: object
@@ -202,6 +437,23 @@ components:
           description: Optional list of known DynamoDB tables (dev visibility).
           items:
             type: string
+
+    CurrentUserResponse:
+      type: object
+      description: Authenticated user information derived from JWT claims.
+      required: [subject]
+      properties:
+        subject:
+          type: string
+          description: Stable external user identifier (for example, JWT sub).
+          example: 8f2cb0d5-7d6f-4d75-b2f9-0ef0f8f2c123
+        email:
+          type: string
+          format: email
+          nullable: true
+        issuer:
+          type: string
+          nullable: true
 
     RegisterWorkflowRequest:
       type: object
@@ -367,6 +619,85 @@ components:
         to:
           type: string
 
+    TenantResponse:
+      type: object
+      description: Tenant metadata.
+      required: [tenantId, slug, name, createdAt]
+      properties:
+        tenantId:
+          type: string
+        slug:
+          type: string
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          nullable: true
+
+    ListTenantsResponse:
+      type: object
+      description: List of tenants.
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantResponse'
+
+    CreateTenantRequest:
+      type: object
+      required: [slug, name]
+      properties:
+        slug:
+          type: string
+          description: Stable tenant slug.
+          minLength: 1
+          maxLength: 64
+          example: acme
+        name:
+          type: string
+          description: Human-readable tenant name.
+          minLength: 1
+          maxLength: 128
+          example: Acme Corp
+        createCreatorMembership:
+          type: boolean
+          default: true
+          description: |
+            If true, the authenticated creator is added as the first tenant ADMIN.
+
+    CreateTenantMembershipRequest:
+      type: object
+      required: [userId, role]
+      properties:
+        userId:
+          type: string
+          description: Stable user identifier (for example, Supabase sub).
+        role:
+          type: string
+          enum: [ADMIN, OPERATOR, VIEWER]
+
+    TenantMembershipResponse:
+      type: object
+      required: [tenantId, userId, role, createdAt]
+      properties:
+        tenantId:
+          type: string
+        userId:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, OPERATOR, VIEWER]
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          nullable: true
+
     ApiError:
       type: object
       description: Standard error response.
@@ -379,4 +710,3 @@ components:
           type: array
           items:
             type: string
-            example: "Workflow has a cycle involving steps: A -> B -> A"

@@ -1,6 +1,10 @@
 package com.orkestra.app.web;
 
 import com.orkestra.api.model.ApiError;
+import com.orkestra.app.exception.AdminForbiddenException;
+import com.orkestra.app.exception.MissingTenantIdException;
+import com.orkestra.app.exception.TenantAccessDeniedException;
+import com.orkestra.app.exception.TenantNotFoundException;
 import com.orkestra.exception.FileProcessingException;
 import com.orkestra.exception.UnsupportedMediaTypeException;
 import com.orkestra.exception.WorkflowNotFoundException;
@@ -139,6 +143,67 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(WorkflowNotFoundException.class)
     public ResponseEntity<ApiError> handleWorkflowNotFoundException(WorkflowNotFoundException ex) {
         log.error("Unexpected error occurred", ex);
+
+        List<String> message = ex.getMessage() == null ? List.of("Unexpected error occurred") : Arrays.stream(ex.getMessage().split("\n")).toList();
+
+        ApiError error = new ApiError()
+                .code(ex.getCode())
+                .messages(message);
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(error);
+
+    }
+
+    @ExceptionHandler(MissingTenantIdException.class)
+    public ResponseEntity<ApiError> handleMissingTenantIdException(MissingTenantIdException ex) {
+        log.error("Missing tenantId", ex);
+
+        List<String> message = ex.getMessage() == null ? List.of("Unexpected error occurred") : Arrays.stream(ex.getMessage().split("\n")).toList();
+
+        ApiError error = new ApiError()
+                .code(ex.getCode())
+                .messages(message);
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(error);
+    }
+
+    @ExceptionHandler(AdminForbiddenException.class)
+    public ResponseEntity<ApiError> handleAdminForbiddenException(AdminForbiddenException ex) {
+        log.error("Admin forbidden", ex);
+
+        List<String> message = ex.getMessage() == null ? List.of("Unexpected error occurred") : Arrays.stream(ex.getMessage().split("\n")).toList();
+
+        ApiError error = new ApiError()
+                .code(ex.getCode())
+                .messages(message);
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(error);
+    }
+
+    @ExceptionHandler(TenantAccessDeniedException.class)
+    public ResponseEntity<ApiError> handleTenantAccessDeniedException(TenantAccessDeniedException ex) {
+        log.error("Tenant access denied", ex);
+
+        List<String> message = ex.getMessage() == null ? List.of("Unexpected error occurred") : Arrays.stream(ex.getMessage().split("\n")).toList();
+
+        ApiError error = new ApiError()
+                .code(ex.getCode())
+                .messages(message);
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(error);
+    }
+
+    @ExceptionHandler(TenantNotFoundException.class)
+    public ResponseEntity<ApiError> handleTenantNotFoundException(TenantNotFoundException ex) {
+        log.error("Tenant not found", ex);
 
         List<String> message = ex.getMessage() == null ? List.of("Unexpected error occurred") : Arrays.stream(ex.getMessage().split("\n")).toList();
 

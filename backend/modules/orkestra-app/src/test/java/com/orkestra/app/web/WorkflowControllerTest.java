@@ -1,6 +1,12 @@
 package com.orkestra.app.web;
 
+import com.orkestra.api.model.ListWorkflowVersionsResponse;
+import com.orkestra.api.model.ListWorkflowsResponse;
 import com.orkestra.api.model.RegisterWorkflowResponse;
+import com.orkestra.api.model.WorkflowListItem;
+import com.orkestra.api.model.WorkflowVersion;
+import com.orkestra.api.model.WorkflowVersionMetadata;
+import com.orkestra.app.security.TenantFilter;
 import com.orkestra.app.service.WorkflowManagementService;
 import com.orkestra.app.web.util.WorkflowFileReader;
 import com.orkestra.exception.FileProcessingException;
@@ -14,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,6 +38,9 @@ class WorkflowControllerTest {
 
     @MockBean
     private WorkflowManagementService workflowManagementService;
+
+    @MockBean
+    private TenantFilter tenantFilter;
 
     @Test
     @DisplayName("registerWorkflow: happy path with application/yaml file")
@@ -51,7 +61,7 @@ class WorkflowControllerTest {
         expectedResponse.setCreatedAt(OffsetDateTime.now());
         when(workflowManagementService.register("1", name, new String(content))).thenReturn(expectedResponse);
 
-        ResponseEntity<RegisterWorkflowResponse> response = controller.registerWorkflow(name, file);
+        ResponseEntity<RegisterWorkflowResponse> response = controller.registerWorkflow("1", name, file);
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(response.getBody()).isNotNull();
@@ -81,7 +91,7 @@ class WorkflowControllerTest {
         expectedResponse.setCreatedAt(OffsetDateTime.now());
         when(workflowManagementService.register("1", name, new String(content))).thenReturn(expectedResponse);
 
-        ResponseEntity<RegisterWorkflowResponse> response = controller.registerWorkflow(name, file);
+        ResponseEntity<RegisterWorkflowResponse> response = controller.registerWorkflow("1", name, file);
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(response.getBody()).isNotNull();
@@ -114,7 +124,7 @@ class WorkflowControllerTest {
         when(workflowManagementService.register("1", name, new String(content))).thenReturn(expectedResponse);
 
 
-        var response = controller.registerWorkflow(name, file);
+        var response = controller.registerWorkflow("1", name, file);
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(response.getBody()).isNotNull();
@@ -136,7 +146,7 @@ class WorkflowControllerTest {
                 new byte[0]
         );
 
-        assertThatThrownBy(() -> controller.registerWorkflow(name, empty))
+        assertThatThrownBy(() -> controller.registerWorkflow("1", name, empty))
                 .isInstanceOf(FileProcessingException.class)
                 .hasMessageContaining("No workflow file provided");
     }
@@ -152,7 +162,7 @@ class WorkflowControllerTest {
                 "content".getBytes()
         );
 
-        assertThatThrownBy(() -> controller.registerWorkflow(name, file))
+        assertThatThrownBy(() -> controller.registerWorkflow("1", name, file))
                 .isInstanceOf(UnsupportedMediaTypeException.class)
                 .hasMessageContaining("Unsupported file type");
     }
@@ -169,8 +179,57 @@ class WorkflowControllerTest {
                 content
         );
 
-        assertThatThrownBy(() -> controller.registerWorkflow(name, file))
+        assertThatThrownBy(() -> controller.registerWorkflow("1", name, file))
                 .isInstanceOf(UnsupportedMediaTypeException.class)
                 .hasMessageContaining("Unsupported file type");
+    }
+
+    @Test
+    @DisplayName("listWorkflows: list all workflows for tenant")
+    void listWorkflows() {
+        ListWorkflowsResponse response = new ListWorkflowsResponse();
+        WorkflowListItem item = new WorkflowListItem();
+        item.setName("invoice-processing");
+        item.setLatestVersion(1);
+        response.setItems(List.of(item));
+        when(workflowManagementService.listWorkflows("tenant-123", "curstor", 100)).thenReturn(response);
+
+        ResponseEntity<ListWorkflowsResponse> result = controller.listWorkflows("tenant-123", "curstor", 100);
+        assertThat(result.getStatusCode().value()).isEqualTo(200);
+        assertThat(result.getBody()).isEqualTo(response);
+    }
+
+    @Test
+    @DisplayName("listWorkflowVersions: list all workflow versions")
+    void listWorkflowVersions() {
+        ListWorkflowVersionsResponse response = new ListWorkflowVersionsResponse();
+        WorkflowVersionMetadata item1 = new WorkflowVersionMetadata();
+        item1.setVersion(1);
+        item1.setCreatedAt(OffsetDateTime.now().minusDays(1));
+
+        WorkflowVersionMetadata item2 = new WorkflowVersionMetadata();
+        item2.setVersion(2);
+        item2.setCreatedAt(OffsetDateTime.now());
+        response.setVersions(List.of(item1, item2));
+
+        when(workflowManagementService.listWorkflowVersions("tenant-123", "workflow-1")).thenReturn(response);
+        ResponseEntity<ListWorkflowVersionsResponse> result = controller.listWorkflowVersions("tenant-123", "workflow-1");
+        assertThat(result.getStatusCode().value()).isEqualTo(200);
+        assertThat(result.getBody()).isEqualTo(response);
+    }
+
+    @Test
+    @DisplayName("getWorkflowVersion: get details for Workflow version")
+    void getWorkflowVersion() {
+        WorkflowVersion response = new WorkflowVersion();
+        response.setVersion(2);
+        response.setCreatedAt(OffsetDateTime.now().minusDays(1));
+        response.setName("workflow-1");
+
+        when(workflowManagementService.getWorkflowVersion("tenant-123", "workflow-1", 2)).thenReturn(response);
+
+        ResponseEntity<WorkflowVersion> result = controller.getWorkflowVersion("tenant-123", "workflow-1", 2);
+        assertThat(result.getStatusCode().value()).isEqualTo(200);
+        assertThat(result.getBody()).isEqualTo(response);
     }
 }
